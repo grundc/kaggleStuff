@@ -79,6 +79,7 @@ y <- as.matrix(train_data[,SalePrice])
 
 # Normal equation   (X(T) * X)^-1 * X(T)*y
 solve(t(X) %*% X) %*% t(X) %*% y
+# theta <- solve(t(X) %*% X) %*% t(X) %*% y
 
 # Standard function R
 lm_houseprice_1 <- lm(SalePrice~., train_data_subset)
