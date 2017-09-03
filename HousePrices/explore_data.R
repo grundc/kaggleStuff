@@ -3,6 +3,7 @@
 setwd("./GitHub/kaggleStuff/HousePrices")
 
 library(data.table)
+library(ggplot2)
 
 # Loading data
 train_csv <- "./data/train.csv"
@@ -35,6 +36,11 @@ train_data_subset <- train_data[LotArea <= 50000,.(LotArea, TotalHouseSF = GrLiv
 train_data_subset
 plot(train_data_subset)
 
+# Basement SF vs Total SF
+train_data_subset <- train_data[,.(TotalHouseSF = GrLivArea+X1stFlrSF+X2ndFlrSF, TotalBsmtSF)]
+train_data_subset
+plot(train_data_subset)
+
 
 # Age of house when sold vs price
 # today <- Sys.Date()
@@ -55,16 +61,16 @@ plot(train_data_subset)
 
 
 # First try
-train_data_subset <- train_data[, .(SalePrice, HouseAge = YrSold - YearBuilt, LotArea, TotalHouseSF = GrLivArea+X1stFlrSF+X2ndFlrSF, OverallCond)]
-test_data_subset <- test_data[, .(Id, HouseAge = YrSold - YearBuilt, LotArea, TotalHouseSF = GrLivArea+X1stFlrSF+X2ndFlrSF, OverallCond)]
+train_data_subset <- train_data[, .(SalePrice, HouseAge = YrSold - YearBuilt, LotArea, TotalHouseSF = GrLivArea+X1stFlrSF+X2ndFlrSF, OverallCond, OverallQual,TotalBsmtSF, Fireplaces)]
+test_data_subset <- test_data[, .(Id, HouseAge = YrSold - YearBuilt, LotArea, TotalHouseSF = GrLivArea+X1stFlrSF+X2ndFlrSF, OverallCond, OverallQual, TotalBsmtSF,Fireplaces)]
 
-library(caret)
 
-modelFit <- train(SalePrice~.,data=train_data_subset,method="lm")
-modelFit$finalModel
+modelFit <- lm(SalePrice~. -1, train_data_subset) 
+summary(modelFit)
 predictions <- predict(modelFit,newdata=test_data_subset)
 length(predictions)
 result <- cbind(1461:(1460 + length(predictions)),predictions)
+result <- data.table(result)
 colnames(result) <- c("Id","SalePrice")
 head(result)
 write.csv(result,file=result_csv, quote=FALSE, row.names = FALSE)
@@ -73,7 +79,7 @@ write.csv(result,file=result_csv, quote=FALSE, row.names = FALSE)
 
 
 # Alternative methods
-X <- as.matrix(train_data[, .(bias = 1,HouseAge = YrSold - YearBuilt, LotArea, TotalHouseSF = GrLivArea+X1stFlrSF+X2ndFlrSF, OverallCond)])
+X <- as.matrix(train_data[, .(bias = 1,HouseAge = YrSold - YearBuilt, LotArea, TotalHouseSF = GrLivArea+X1stFlrSF+X2ndFlrSF, OverallCond, OverallQual,TotalBsmtSF, Fireplaces)])
 
 y <- as.matrix(train_data[,SalePrice])
 
@@ -83,6 +89,7 @@ solve(t(X) %*% X) %*% t(X) %*% y
 
 # Standard function R
 lm_houseprice_1 <- lm(SalePrice~., train_data_subset)
+# lm_houseprice_1 <- lm(SalePrice~. -1, train_data_subset) # without intercept
 summary(lm_houseprice_1)
 
 
@@ -97,6 +104,13 @@ solve(t(scaled.X) %*% scaled.X) %*% t(scaled.X) %*% y
 
 LinReg_GradientDesc(scaled.X,y,0.001,0,100000,0.0001)
 
+# Working with a learning curve
+learning_data <- Learning_curve(X,y,50)
+colnames(learning_data) <- c("Samples","RMSE", "type")
+
+learning_data <- data.table(learning_data)
+head(learning_data)
 
 
-
+learningplot <- ggplot(learning_data, aes(x=Samples,y=RMSE, group=type, colour=type)) + geom_smooth() 
+learningplot
